@@ -5,3 +5,4 @@ Days currently solved:
 - Day01 **#1** and **#2**
 - Day02 **#1** and **#2**
 - Day03 **#1** and **#2**
+- Day04 **#1** and **#2**
