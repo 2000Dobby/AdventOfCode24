@@ -1,42 +1,37 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+
+var stopwatch = Stopwatch.StartNew();
+var (grid, startingPosition) = ParseInput("../../../input.txt");
+
+int loopCount = CountObstaclePlacements(grid, startingPosition);
+int positionsVisited = CountPositionsVisited(grid);
+stopwatch.Stop();
+
+Console.WriteLine("The guard visited {0} distinct positions", positionsVisited);
+Console.WriteLine("The number of possible loops is {0}", loopCount);
+Console.WriteLine("The execution took {0:F2}s", stopwatch.ElapsedMilliseconds / 1000d);
+
+return;
 
 
-char[,] grid = ParseInput("../../../input.txt");
-(int, int) startingPosition = FindStartingPosition(grid);
+(char[,], (int, int)) ParseInput(string path) {
+    string[] lines = File.ReadAllLines(path);
 
-IsRunningInCircle(grid, startingPosition);
-Console.WriteLine("The guard visited {0} distinct positions", CountPositionsVisited(grid));
-Console.WriteLine("The number of possible loops is {0}", CountObstaclePlacements(grid, startingPosition));
+    int rows = lines.Length;
+    int cols = lines[0].Length;
+    
+    (int, int) startingPosition = (0, 0);
+    char[,] grid = new char[rows, cols];
 
-
-char[,] ParseInput(string path) {
-    using var file = File.OpenRead(path);
-    using var reader = new StreamReader(file, Encoding.UTF8);
-
-    List<char[]> lines = [];
-    string? line;
-
-    while ((line = reader.ReadLine()) != null) {
-        lines.Add(line.ToCharArray());
-    }
-
-    char[,] grid = new char[lines.Count, lines[0].Length];
-    for (int i = 0; i < lines.Count; i++) {
-        for (int j = 0; j < lines[i].Length; j++) {
-            grid[i, j] = lines[i][j];
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            char val = lines[i][j];
+            grid[i, j] = val;
+            if (val is '^') startingPosition = (i, j);
         }
     }
 
-    return grid;
-}
-
-(int, int) FindStartingPosition(char[,] grid) {
-    for (int x = 0; x < grid.GetLength(0); x++) {
-        for (int y = 0; y < grid.GetLength(1); y++) {
-            if (grid[x, y] == '^') return (x, y);
-        }
-    }
-    return (0, 0);
+    return (grid, startingPosition);
 }
 
 (int, int) Rotate90Deg((int, int) direction) {
@@ -63,80 +58,69 @@ int CountPositionsVisited(char[,] grid) {
     return visited + 1;
 }
 
-int CountObstaclePlacements(char[,] grid, (int, int) startingPosition) {
+int CountObstaclePlacements(char[,] grid, (int, int) startingPosition) { // ToDo: Optimization - Save path that has already been run since it is always the same 
     int circlesFound = 0;
 
+    int width = grid.GetLength(0);
+    int height = grid.GetLength(1);
+    
     (int, int) position = startingPosition;
     (int, int) direction = (-1, 0);
 
     while (true) {
         (int, int) next = Add(position, direction);
 
-        if (next.Item1 < 0 || next.Item1 >= grid.GetLength(0) || next.Item2 < 0 || next.Item2 >= grid.GetLength(1)) break;
+        if (next.Item1 < 0 || next.Item1 >= width || next.Item2 < 0 || next.Item2 >= height) break;
 
         if (grid[next.Item1, next.Item2] == '#') {
             direction = Rotate90Deg(direction);
             continue;
         }
 
-        char[,] gridCopy = CopyGrid(grid, next);
-        if (grid[next.Item1, next.Item2] != 'M' && IsRunningInCircle(gridCopy, startingPosition)) {
+        if (grid[next.Item1, next.Item2] != 'X' && IsRunningInCircle(grid, startingPosition, next)) {
             circlesFound++;
         }
 
-        grid[position.Item1, position.Item2] = 'M';
+        grid[position.Item1, position.Item2] = 'X';
         position = next;
     }
 
     return circlesFound;
 }
 
-char[,] CopyGrid(char[,] grid, (int, int) newObstacle) {
-    char[,] newGrid = new char[grid.GetLength(0), grid.GetLength(1)];
+bool IsRunningInCircle(char[,] grid, (int, int) startingPosition, (int, int) newObstacle) {
+    HashSet<((int, int), (int, int))> visited = [];
+
+    char prev = grid[newObstacle.Item1, newObstacle.Item2];
+    grid[newObstacle.Item1, newObstacle.Item2] = '#';
+
+    int width = grid.GetLength(0);
+    int height = grid.GetLength(1);
     
-    for (int x = 0; x < grid.GetLength(0); x++) {
-        for (int y = 0; y < grid.GetLength(1); y++) {
-            newGrid[x, y] = grid[x, y];
-        }
-    }
-
-    newGrid[newObstacle.Item1, newObstacle.Item2] = 'O';
-    return newGrid;
-}
-
-bool IsRunningInCircle(char[,] grid, (int, int) startingPosition) {
-    List<(int, int, int, int)> visited = [];
-
-    (int, int) startDirection = (-1, 0);
-
     (int, int) position = startingPosition;
-    (int, int) direction = startDirection;
-
+    (int, int) direction = (-1, 0);
+    
+    bool loop;
     while (true) {
-        visited.Add((position.Item1, position.Item2, direction.Item1, direction.Item2));
-
+        if (!visited.Add((position, direction))) {
+            loop = true;
+            break;
+        }
+        
         (int, int) next = Add(position, direction);
+        if (next.Item1 < 0 || next.Item1 >= width || next.Item2 < 0 || next.Item2 >= height) {
+            loop = false;
+            break;
+        }
 
-        if (next.Item1 < 0 || next.Item1 >= grid.GetLength(0) || next.Item2 < 0 || next.Item2 >= grid.GetLength(1)) return false;
-        if (VisitedBefore(visited, next, direction)) return true;
-
-        char val = grid[next.Item1, next.Item2];
-        if (val == '#' || val == 'O') {
+        if (grid[next.Item1, next.Item2] is '#') {
             direction = Rotate90Deg(direction);
             continue;
         }
 
-        grid[position.Item1, position.Item2] = 'X';
         position = next;
     }
-}
-
-bool VisitedBefore(List<(int, int, int, int)> visited, (int, int) position, (int, int) direction) {
-    foreach (var transform in visited) {
-        if (
-            transform.Item1 == position.Item1 && transform.Item2 == position.Item2
-            && transform.Item3 == direction.Item1 && transform.Item4 == direction.Item2
-        ) return true;
-    }
-    return false;
+    
+    grid[newObstacle.Item1, newObstacle.Item2] = prev;
+    return loop;
 }

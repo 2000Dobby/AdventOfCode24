@@ -7,5 +7,5 @@ Days currently solved:
 - Day03 **#1** and **#2**
 - Day04 **#1** and **#2**
 - Day05 **#1** and **#2**
-- Day06 **#1** and **#2** (The solution is extremely slow and could be further optimized, but I don't have time to do that)
+- Day06 **#1** and **#2**
 - Day07 **#1** and **#2**
