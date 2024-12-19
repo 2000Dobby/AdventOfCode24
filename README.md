@@ -11,3 +11,4 @@ Days currently solved:
 - Day07 **#1** and **#2**
 - Day08 **#1** and **#2**
 - Day09 **#1** and **#2**
+- Day10 **#1** and **#2**
